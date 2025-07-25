@@ -54,6 +54,7 @@ export function StationDetails({ station, onClose, onToggleFavorite, isFavorite 
 
         {/* Fuel Prices */}
         <div className="space-y-3 mb-4">
+          {/* Gazole */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center">
@@ -65,12 +66,13 @@ export function StationDetails({ station, onClose, onToggleFavorite, isFavorite 
               </div>
             </div>
             <div className="text-right">
-              <p className={`text-xl font-bold ${getPriceColorClass(station.prixGazole)}`}>
+              <p className={`text-lg font-bold ${getPriceColorClass(station.prixGazole)}`}>
                 {formatPrice(station.prixGazole)}
               </p>
             </div>
           </div>
 
+          {/* SP95 */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
@@ -82,8 +84,80 @@ export function StationDetails({ station, onClose, onToggleFavorite, isFavorite 
               </div>
             </div>
             <div className="text-right">
-              <p className={`text-xl font-bold ${getPriceColorClass(station.prixSP95)}`}>
+              <p className={`text-lg font-bold ${getPriceColorClass(station.prixSP95)}`}>
                 {formatPrice(station.prixSP95)}
+              </p>
+            </div>
+          </div>
+
+          {/* SP98 */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-4 h-4 bg-white rounded-full"></div>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">SP98</p>
+                <p className="text-xs text-gray-600">Sans plomb 98</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${getPriceColorClass(station.prixSP98)}`}>
+                {formatPrice(station.prixSP98)}
+              </p>
+            </div>
+          </div>
+
+          {/* E10 */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="w-4 h-4 bg-white rounded-full"></div>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">E10</p>
+                <p className="text-xs text-gray-600">Essence E10</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${getPriceColorClass(station.prixE10)}`}>
+                {formatPrice(station.prixE10)}
+              </p>
+            </div>
+          </div>
+
+          {/* E85 */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                <div className="w-4 h-4 bg-white rounded-full"></div>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">E85</p>
+                <p className="text-xs text-gray-600">Bioéthanol</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${getPriceColorClass(station.prixE85)}`}>
+                {formatPrice(station.prixE85)}
+              </p>
+            </div>
+          </div>
+
+          {/* GPL-c */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                <div className="w-4 h-4 bg-white rounded-full"></div>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">GPL-c</p>
+                <p className="text-xs text-gray-600">Gaz de pétrole liquéfié</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${getPriceColorClass(station.prixGPLc)}`}>
+                {formatPrice(station.prixGPLc)}
               </p>
             </div>
           </div>

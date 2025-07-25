@@ -28,6 +28,10 @@ export class MemStorage implements IStorage {
         lon: 2.3522,
         prixGazole: 1.629,
         prixSP95: 1.729,
+        prixSP98: 1.789,
+        prixE10: 1.709,
+        prixE85: null,
+        prixGPLc: 0.919,
       },
       {
         nom: "Shell Station",
@@ -37,6 +41,10 @@ export class MemStorage implements IStorage {
         lon: 2.2950,
         prixGazole: 1.749,
         prixSP95: 1.819,
+        prixSP98: null,
+        prixE10: 1.799,
+        prixE85: 1.249,
+        prixGPLc: null,
       },
       {
         nom: "BP Express",
@@ -46,6 +54,10 @@ export class MemStorage implements IStorage {
         lon: 2.3490,
         prixGazole: 1.849,
         prixSP95: 1.899,
+        prixSP98: 1.949,
+        prixE10: 1.879,
+        prixE85: 1.269,
+        prixGPLc: 0.949,
       },
       {
         nom: "Esso Louvre",
@@ -276,6 +288,12 @@ export class MemStorage implements IStorage {
         ...station,
         id,
         maj: new Date(),
+        prixGazole: station.prixGazole ?? null,
+        prixSP95: station.prixSP95 ?? null,
+        prixSP98: station.prixSP98 ?? null,
+        prixE10: station.prixE10 ?? null,
+        prixE85: station.prixE85 ?? null,
+        prixGPLc: station.prixGPLc ?? null,
       };
       this.stations.set(id, fullStation);
     });
@@ -295,6 +313,12 @@ export class MemStorage implements IStorage {
       ...insertStation,
       id,
       maj: new Date(),
+      prixGazole: insertStation.prixGazole ?? null,
+      prixSP95: insertStation.prixSP95 ?? null,
+      prixSP98: insertStation.prixSP98 ?? null,
+      prixE10: insertStation.prixE10 ?? null,
+      prixE85: insertStation.prixE85 ?? null,
+      prixGPLc: insertStation.prixGPLc ?? null,
     };
     this.stations.set(id, station);
     return station;

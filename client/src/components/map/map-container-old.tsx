@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { MapContainer as LeafletMap, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer as LeafletMap, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { Icon, divIcon } from "leaflet";
 import { StationCluster } from "./station-cluster";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, Crosshair } from "lucide-react";
+import { MapPin, Plus, Minus, Crosshair } from "lucide-react";
 import type { Station } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
 
@@ -62,9 +63,9 @@ export function MapContainer({
     setZoom(newZoom);
   };
 
-  // Centre sur Paris par défaut
+  // Center on Paris by default
   const defaultCenter: [number, number] = [48.8566, 2.3522];
-  const defaultZoom = 6;
+  const defaultZoom = 12;
 
   const handleCenterMap = () => {
     if (navigator.geolocation) {
@@ -76,18 +77,13 @@ export function MapContainer({
           }
         },
         (error) => {
-          console.log("Géolocalisation non disponible:", error);
-          // Fallback vers le centre de Paris
+          console.error("Erreur de géolocalisation:", error);
+          // Fallback to Paris center
           if (mapRef.current) {
-            mapRef.current.setView(defaultCenter, 12);
+            mapRef.current.setView(defaultCenter, defaultZoom);
           }
         }
       );
-    } else {
-      console.log("Géolocalisation non disponible");
-      if (mapRef.current) {
-        mapRef.current.setView(defaultCenter, 12);
-      }
     }
   };
 
@@ -103,19 +99,23 @@ export function MapContainer({
     }
   };
 
+
+
   return (
     <div className="relative w-full h-full">
       <LeafletMap
         ref={mapRef}
         center={defaultCenter}
         zoom={defaultZoom}
-        style={{ width: "100%", height: "100%", zIndex: 1 }}
+        style={{ width: "100%", height: "100%" }}
         zoomControl={false}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        
+
         
         <MapEventHandler onBoundsChange={handleBoundsChange} />
         
@@ -129,15 +129,23 @@ export function MapContainer({
         />
       </LeafletMap>
 
-      {/* Contrôles de la carte */}
+      {/* Map Controls */}
       <div className="absolute top-4 right-4 z-20 flex flex-col space-y-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="bg-white shadow-lg rounded-lg p-3 hover:bg-gray-50"
+          onClick={handleCenterMap}
+        >
+          <Crosshair className="h-5 w-5 text-primary" />
+        </Button>
         <Button
           variant="secondary"
           size="sm"
           className="bg-white shadow-lg rounded-lg p-3 hover:bg-gray-50"
           onClick={handleZoomIn}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-5 w-5 text-gray-700" />
         </Button>
         <Button
           variant="secondary"
@@ -145,24 +153,16 @@ export function MapContainer({
           className="bg-white shadow-lg rounded-lg p-3 hover:bg-gray-50"
           onClick={handleZoomOut}
         >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="bg-white shadow-lg rounded-lg p-3 hover:bg-gray-50"
-          onClick={handleCenterMap}
-        >
-          <Crosshair className="h-4 w-4" />
+          <Minus className="h-5 w-5 text-gray-700" />
         </Button>
       </div>
 
-      {/* Indicateur de chargement */}
+      {/* Loading Indicator */}
       {isLoading && (
-        <div className="absolute top-4 left-4 z-20 bg-white px-3 py-2 rounded-lg shadow-lg">
-          <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            <span className="text-sm text-gray-600">Chargement...</span>
+        <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-30">
+          <div className="flex flex-col items-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="text-gray-600 text-sm">Chargement des stations...</span>
           </div>
         </div>
       )}
