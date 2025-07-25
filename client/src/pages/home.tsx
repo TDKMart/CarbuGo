@@ -143,7 +143,7 @@ export default function Home() {
       </div>
 
       {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative pb-20">
         <MapContainer
           stations={displayedStations}
           onStationClick={setSelectedStationId}

@@ -89,7 +89,14 @@ export function StationDetails({ station, onClose }: StationDetailsProps) {
 
         {/* Actions */}
         <div className="flex space-x-3 mb-4">
-          <Button className="flex-1 flex items-center justify-center space-x-2">
+          <Button 
+            className="flex-1 flex items-center justify-center space-x-2"
+            onClick={() => {
+              const destination = `${station.lat},${station.lon}`;
+              const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${encodeURIComponent(station.nom)}`;
+              window.open(url, '_blank');
+            }}
+          >
             <Navigation className="h-4 w-4" />
             <span>Itinéraire</span>
           </Button>

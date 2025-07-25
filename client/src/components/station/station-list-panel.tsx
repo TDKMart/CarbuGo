@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronUp, ChevronDown, MapPin, Navigation, SortAsc, SortDesc } from "lucide-react";
+import { ChevronUp, ChevronDown, MapPin, Navigation, SortAsc, SortDesc, ExternalLink } from "lucide-react";
 import type { Station } from "@shared/schema";
 
 interface StationListPanelProps {
@@ -93,18 +93,24 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
     return "secondary";
   };
 
+  const openGoogleMapsDirections = (station: Station) => {
+    const destination = `${station.lat},${station.lon}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${encodeURIComponent(station.nom)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <>
       {/* Overlay when expanded */}
       {isExpanded && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-20 z-30"
+          className="fixed inset-0 bg-black bg-opacity-20 z-50"
           onClick={() => setIsExpanded(false)}
         />
       )}
 
       {/* Panel */}
-      <div className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-40 transition-transform duration-300 ${
+      <div className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 transition-transform duration-300 ${
         isExpanded ? 'transform translate-y-0' : 'transform translate-y-[calc(100%-80px)]'
       }`}>
         
@@ -208,11 +214,13 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
               {sortedStations.map((station) => (
                 <div
                   key={station.id}
-                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => onStationClick(station.id)}
+                  className="px-4 py-3 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onStationClick(station.id)}
+                    >
                       <div className="flex items-center space-x-2">
                         <h4 className="font-medium text-gray-900 truncate">{station.nom}</h4>
                         <Badge variant={getPriceBadgeVariant(station.prixGazole)}>
@@ -234,6 +242,20 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
                           </span>
                         )}
                       </div>
+                    </div>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openGoogleMapsDirections(station);
+                        }}
+                        className="flex items-center space-x-1"
+                      >
+                        <Navigation className="h-3 w-3" />
+                        <span className="hidden sm:inline">Itinéraire</span>
+                      </Button>
                     </div>
                   </div>
                 </div>
