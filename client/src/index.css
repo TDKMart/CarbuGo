@@ -113,6 +113,15 @@
 /* Leaflet Map Styling */
 .leaflet-container {
   font-family: 'Roboto', sans-serif;
+  z-index: 1 !important;
+}
+
+.leaflet-control-container {
+  z-index: 10 !important;
+}
+
+.leaflet-popup {
+  z-index: 500 !important;
 }
 
 .custom-div-icon {

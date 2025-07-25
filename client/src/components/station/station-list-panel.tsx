@@ -14,6 +14,7 @@ type SortBy = "price" | "distance" | "name";
 
 export function StationListPanel({ stations, onStationClick, userLocation }: StationListPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
@@ -99,25 +100,49 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
     window.open(url, '_blank');
   };
 
+  const handlePanelToggle = () => {
+    if (isFullScreen) {
+      setIsFullScreen(false);
+      setIsExpanded(false);
+    } else if (isExpanded) {
+      setIsFullScreen(true);
+    } else {
+      setIsExpanded(true);
+    }
+  };
+
+  const handleOverlayClick = () => {
+    if (isFullScreen) {
+      setIsFullScreen(false);
+      setIsExpanded(true);
+    } else {
+      setIsExpanded(false);
+    }
+  };
+
   return (
     <>
-      {/* Overlay when expanded */}
-      {isExpanded && (
+      {/* Overlay when expanded or fullscreen */}
+      {(isExpanded || isFullScreen) && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-20 z-50"
-          onClick={() => setIsExpanded(false)}
+          className="fixed inset-0 bg-black bg-opacity-20 z-[1000]"
+          onClick={handleOverlayClick}
         />
       )}
 
       {/* Panel */}
-      <div className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 transition-transform duration-300 ${
-        isExpanded ? 'transform translate-y-0' : 'transform translate-y-[calc(100%-80px)]'
+      <div className={`fixed bottom-0 left-0 right-0 bg-white shadow-2xl z-[1001] transition-all duration-300 ${
+        isFullScreen 
+          ? 'top-20 rounded-t-2xl flex flex-col' 
+          : isExpanded 
+            ? 'transform translate-y-0 rounded-t-2xl max-h-96' 
+            : 'transform translate-y-[calc(100%-80px)] rounded-t-2xl'
       }`}>
         
         {/* Handle */}
         <div 
           className="flex items-center justify-center py-3 cursor-pointer border-b border-gray-200"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={handlePanelToggle}
         >
           <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
         </div>
@@ -129,7 +154,7 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
               <h3 className="text-lg font-medium text-gray-900">
                 Stations ({stations.length})
               </h3>
-              {!isExpanded && (
+              {!isExpanded && !isFullScreen && (
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -141,12 +166,32 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
                   <ChevronUp className="h-4 w-4" />
                 </Button>
               )}
+              {isExpanded && !isFullScreen && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFullScreen(true);
+                  }}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-            {isExpanded && (
+            {(isExpanded || isFullScreen) && (
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setIsExpanded(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isFullScreen) {
+                    setIsFullScreen(false);
+                    setIsExpanded(true);
+                  } else {
+                    setIsExpanded(false);
+                  }
+                }}
               >
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -154,7 +199,7 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
           </div>
           
           {/* Quick stats when collapsed */}
-          {!isExpanded && (
+          {!isExpanded && !isFullScreen && (
             <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
               <span>Prix le plus bas: {formatPrice(Math.min(...stations.filter(s => s.prixGazole).map(s => s.prixGazole!)))}</span>
               {userLocation && (
@@ -165,8 +210,8 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
         </div>
 
         {/* Content */}
-        {isExpanded && (
-          <div className="max-h-96 overflow-y-auto">
+        {(isExpanded || isFullScreen) && (
+          <div className={`overflow-y-auto ${isFullScreen ? 'flex-1' : 'max-h-96'}`}>
             {/* Sort Controls */}
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center space-x-2">
