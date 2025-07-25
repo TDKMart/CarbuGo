@@ -15,6 +15,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
   const { toast } = useToast();
 
   const { data: stations = [], isLoading, refetch } = useQuery<Station[]>({
@@ -38,7 +39,27 @@ export default function Home() {
     ? stations.find((s: Station) => s.id === selectedStationId)
     : null;
 
-  const displayedStations = searchQuery.trim() ? searchResults : stations;
+  // Filter stations based on search query and map bounds
+  const getDisplayedStations = () => {
+    let filteredStations = searchQuery.trim() ? searchResults : stations;
+    
+    // Further filter by map bounds if available
+    if (mapBounds && filteredStations) {
+      filteredStations = filteredStations.filter((station: Station) => {
+        return (
+          station.lat >= mapBounds.south &&
+          station.lat <= mapBounds.north &&
+          station.lon >= mapBounds.west &&
+          station.lon <= mapBounds.east
+        );
+      });
+    }
+    
+    return filteredStations;
+  };
+
+  const displayedStations = getDisplayedStations();
+  const visibleStations = mapBounds ? displayedStations : stations;
 
   const handleRefresh = async () => {
     try {
@@ -145,10 +166,11 @@ export default function Home() {
       {/* Map Container */}
       <div className="flex-1 relative pb-20">
         <MapContainer
-          stations={displayedStations}
+          stations={stations}
           onStationClick={setSelectedStationId}
           selectedStationId={selectedStationId}
           isLoading={isLoading}
+          onBoundsChange={setMapBounds}
         />
       </div>
 
@@ -163,7 +185,7 @@ export default function Home() {
 
       {/* Station List Panel */}
       <StationListPanel
-        stations={displayedStations}
+        stations={visibleStations}
         onStationClick={setSelectedStationId}
         userLocation={userLocation}
       />

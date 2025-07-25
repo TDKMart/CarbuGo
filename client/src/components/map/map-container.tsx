@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { MapContainer as LeafletMap, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer as LeafletMap, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import { Icon, divIcon } from "leaflet";
 import { StationMarker } from "./station-marker";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,15 @@ interface MapContainerProps {
   onStationClick: (stationId: string) => void;
   selectedStationId?: string | null;
   isLoading?: boolean;
+  onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }
 
 export function MapContainer({ 
   stations, 
   onStationClick, 
   selectedStationId, 
-  isLoading 
+  isLoading,
+  onBoundsChange 
 }: MapContainerProps) {
   const mapRef = useRef<any>(null);
 
@@ -58,6 +60,60 @@ export function MapContainer({
     }
   };
 
+  // Component to handle map events
+  function MapEventHandler() {
+    const map = useMapEvents({
+      load: (e) => {
+        if (onBoundsChange) {
+          const bounds = e.target.getBounds();
+          onBoundsChange({
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          });
+        }
+      },
+      moveend: (e) => {
+        if (onBoundsChange) {
+          const bounds = e.target.getBounds();
+          onBoundsChange({
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          });
+        }
+      },
+      zoomend: (e) => {
+        if (onBoundsChange) {
+          const bounds = e.target.getBounds();
+          onBoundsChange({
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          });
+        }
+      },
+    });
+
+    // Trigger initial bounds when component mounts
+    useEffect(() => {
+      if (map && onBoundsChange) {
+        const bounds = map.getBounds();
+        onBoundsChange({
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest(),
+        });
+      }
+    }, [map, onBoundsChange]);
+
+    return null;
+  }
+
   return (
     <div className="relative w-full h-full">
       <LeafletMap
@@ -71,6 +127,8 @@ export function MapContainer({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        
+        <MapEventHandler />
         
         {stations.map((station) => (
           <StationMarker
