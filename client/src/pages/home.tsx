@@ -8,6 +8,7 @@ import { NotificationBanner } from "@/components/notifications/notification-bann
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Menu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFavorites } from "@/hooks/use-favorites";
 import type { Station } from "@shared/schema";
 
 export default function Home() {
@@ -17,6 +18,7 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
   const { toast } = useToast();
+  const { toggleFavorite, isFavorite } = useFavorites();
 
   const { data: stations = [], isLoading, refetch } = useQuery<Station[]>({
     queryKey: ["/api/stations"],
@@ -170,7 +172,7 @@ export default function Home() {
           onStationClick={setSelectedStationId}
           selectedStationId={selectedStationId}
           isLoading={isLoading}
-          onBoundsChange={setMapBounds}
+          isFavorite={isFavorite}
         />
       </div>
 
@@ -185,9 +187,10 @@ export default function Home() {
 
       {/* Station List Panel */}
       <StationListPanel
-        stations={visibleStations}
+        stations={stations}
         onStationClick={setSelectedStationId}
         userLocation={userLocation}
+        isFavorite={isFavorite}
       />
 
       {/* Station Details Bottom Sheet */}
@@ -195,6 +198,8 @@ export default function Home() {
         <StationDetails
           station={selectedStation}
           onClose={() => setSelectedStationId(null)}
+          onToggleFavorite={toggleFavorite}
+          isFavorite={isFavorite(selectedStation.id)}
         />
       )}
     </div>

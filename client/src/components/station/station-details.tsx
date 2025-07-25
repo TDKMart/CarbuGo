@@ -5,9 +5,11 @@ import type { Station } from "@shared/schema";
 interface StationDetailsProps {
   station: Station;
   onClose: () => void;
+  onToggleFavorite?: (stationId: string) => void;
+  isFavorite?: boolean;
 }
 
-export function StationDetails({ station, onClose }: StationDetailsProps) {
+export function StationDetails({ station, onClose, onToggleFavorite, isFavorite = false }: StationDetailsProps) {
   const formatPrice = (price: number | null) => {
     return price ? `${price.toFixed(3)} €/L` : "N/A";
   };
@@ -100,10 +102,16 @@ export function StationDetails({ station, onClose }: StationDetailsProps) {
             <Navigation className="h-4 w-4" />
             <span>Itinéraire</span>
           </Button>
-          <Button variant="outline" className="flex-1 flex items-center justify-center space-x-2">
-            <Star className="h-4 w-4" />
-            <span>Favoris</span>
-          </Button>
+          {onToggleFavorite && (
+            <Button 
+              variant={isFavorite ? "default" : "outline"} 
+              className="flex-1 flex items-center justify-center space-x-2"
+              onClick={() => onToggleFavorite(station.id)}
+            >
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+              <span>{isFavorite ? 'Favori' : 'Favoris'}</span>
+            </Button>
+          )}
         </div>
 
         {/* Last Update */}

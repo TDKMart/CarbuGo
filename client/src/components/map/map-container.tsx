@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapContainer as LeafletMap, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import { Icon, divIcon } from "leaflet";
 import { StationMarker } from "./station-marker";
@@ -13,6 +13,7 @@ interface MapContainerProps {
   selectedStationId?: string | null;
   isLoading?: boolean;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
+  isFavorite?: (stationId: string) => boolean;
 }
 
 export function MapContainer({ 
@@ -20,7 +21,8 @@ export function MapContainer({
   onStationClick, 
   selectedStationId, 
   isLoading,
-  onBoundsChange 
+  onBoundsChange,
+  isFavorite 
 }: MapContainerProps) {
   const mapRef = useRef<any>(null);
 
@@ -62,18 +64,9 @@ export function MapContainer({
 
   // Component to handle map events
   function MapEventHandler() {
+    const [hasInitialized, setHasInitialized] = useState(false);
+    
     const map = useMapEvents({
-      load: (e) => {
-        if (onBoundsChange) {
-          const bounds = e.target.getBounds();
-          onBoundsChange({
-            north: bounds.getNorth(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            west: bounds.getWest(),
-          });
-        }
-      },
       moveend: (e) => {
         if (onBoundsChange) {
           const bounds = e.target.getBounds();
@@ -100,7 +93,7 @@ export function MapContainer({
 
     // Trigger initial bounds when component mounts
     useEffect(() => {
-      if (map && onBoundsChange) {
+      if (map && !hasInitialized && onBoundsChange) {
         const bounds = map.getBounds();
         onBoundsChange({
           north: bounds.getNorth(),
@@ -108,8 +101,9 @@ export function MapContainer({
           east: bounds.getEast(),
           west: bounds.getWest(),
         });
+        setHasInitialized(true);
       }
-    }, [map, onBoundsChange]);
+    }, [map, hasInitialized, onBoundsChange]);
 
     return null;
   }
@@ -128,7 +122,7 @@ export function MapContainer({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        <MapEventHandler />
+
         
         {stations.map((station) => (
           <StationMarker
@@ -136,6 +130,7 @@ export function MapContainer({
             station={station}
             onClick={() => onStationClick(station.id)}
             isSelected={selectedStationId === station.id}
+            isFavorite={isFavorite ? isFavorite(station.id) : false}
           />
         ))}
       </LeafletMap>

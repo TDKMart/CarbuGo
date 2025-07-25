@@ -1,18 +1,19 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronUp, ChevronDown, MapPin, Navigation, SortAsc, SortDesc, ExternalLink } from "lucide-react";
+import { ChevronUp, ChevronDown, MapPin, Navigation, SortAsc, SortDesc, ExternalLink, Star } from "lucide-react";
 import type { Station } from "@shared/schema";
 
 interface StationListPanelProps {
   stations: Station[];
   onStationClick: (stationId: string) => void;
   userLocation?: { lat: number; lon: number } | null;
+  isFavorite?: (stationId: string) => boolean;
 }
 
 type SortBy = "price" | "distance" | "name";
 
-export function StationListPanel({ stations, onStationClick, userLocation }: StationListPanelProps) {
+export function StationListPanel({ stations, onStationClick, userLocation, isFavorite }: StationListPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("price");
@@ -291,6 +292,9 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
                     >
                       <div className="flex items-center space-x-2">
                         <h4 className="font-medium text-gray-900 truncate">{station.nom}</h4>
+                        {isFavorite && isFavorite(station.id) && (
+                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                        )}
                         <Badge variant={getPriceBadgeVariant(station.prixGazole)}>
                           {formatPrice(station.prixGazole)}
                         </Badge>
