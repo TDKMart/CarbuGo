@@ -5,6 +5,8 @@ export interface IStorage {
   getStations(): Promise<Station[]>;
   getStation(id: string): Promise<Station | undefined>;
   createStation(station: InsertStation): Promise<Station>;
+  addStation(station: Station): Promise<Station>;
+  clearStations(): Promise<void>;
   searchStations(query: string): Promise<Station[]>;
   getStationsByPriceRange(maxPrice: number): Promise<Station[]>;
 }
@@ -287,7 +289,10 @@ export class MemStorage implements IStorage {
       const fullStation: Station = {
         ...station,
         id,
-        maj: new Date(),
+        codePostal: null,
+        horaires: null,
+        services: null,
+        derniereMiseAJour: new Date(),
         prixGazole: station.prixGazole ?? null,
         prixSP95: station.prixSP95 ?? null,
         prixSP98: station.prixSP98 ?? null,
@@ -312,7 +317,10 @@ export class MemStorage implements IStorage {
     const station: Station = {
       ...insertStation,
       id,
-      maj: new Date(),
+      codePostal: null,
+      horaires: null,
+      services: null,
+      derniereMiseAJour: new Date(),
       prixGazole: insertStation.prixGazole ?? null,
       prixSP95: insertStation.prixSP95 ?? null,
       prixSP98: insertStation.prixSP98 ?? null,
@@ -322,6 +330,15 @@ export class MemStorage implements IStorage {
     };
     this.stations.set(id, station);
     return station;
+  }
+
+  async addStation(station: Station): Promise<Station> {
+    this.stations.set(station.id, station);
+    return station;
+  }
+
+  async clearStations(): Promise<void> {
+    this.stations.clear();
   }
 
   async searchStations(query: string): Promise<Station[]> {

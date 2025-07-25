@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertStationSchema } from "@shared/schema";
+import { xmlLoader } from "./xml-loader";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -93,6 +94,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Erreur lors du calcul des statistiques" });
+    }
+  });
+
+  // Load stations from XML (online or offline)
+  app.post("/api/stations/load-xml", async (req, res) => {
+    try {
+      const { useLocal = false } = req.body;
+      
+      console.log(`Chargement des stations depuis ${useLocal ? 'fichier local' : 'URL'}...`);
+      const xmlStations = await xmlLoader.loadStations(useLocal);
+      
+      // Vider la base de données et insérer les nouvelles stations
+      await storage.clearStations();
+      
+      for (const station of xmlStations) {
+        await storage.addStation(station);
+      }
+      
+      res.json({ 
+        message: `${xmlStations.length} stations chargées avec succès`,
+        source: useLocal ? 'local' : 'online',
+        count: xmlStations.length
+      });
+    } catch (error) {
+      console.error('Erreur lors du chargement XML:', error);
+      res.status(500).json({ 
+        message: "Erreur lors du chargement des stations depuis XML",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Download XML file for offline use
+  app.post("/api/stations/download-xml", async (req, res) => {
+    try {
+      await xmlLoader.downloadXMLFile();
+      const fileDate = await xmlLoader.getLocalFileDate();
+      
+      res.json({ 
+        message: "Fichier XML téléchargé avec succès",
+        date: fileDate,
+        available: true
+      });
+    } catch (error) {
+      console.error('Erreur lors du téléchargement XML:', error);
+      res.status(500).json({ 
+        message: "Erreur lors du téléchargement du fichier XML",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Check XML file status
+  app.get("/api/stations/xml-status", async (req, res) => {
+    try {
+      const hasLocal = await xmlLoader.checkLocalFileExists();
+      const localDate = await xmlLoader.getLocalFileDate();
+      
+      res.json({
+        hasLocalFile: hasLocal,
+        localFileDate: localDate,
+        isOutdated: localDate ? (Date.now() - localDate.getTime()) > 24 * 60 * 60 * 1000 : true
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erreur lors de la vérification du statut XML" });
     }
   });
 

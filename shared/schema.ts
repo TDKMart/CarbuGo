@@ -4,10 +4,11 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const stations = pgTable("stations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: text("id").primaryKey(), // Utilise l'ID du XML
   nom: text("nom").notNull(),
   adresse: text("adresse").notNull(),
   ville: text("ville").notNull(),
+  codePostal: text("code_postal"),
   lat: real("lat").notNull(),
   lon: real("lon").notNull(),
   prixGazole: real("prix_gazole"),
@@ -16,7 +17,9 @@ export const stations = pgTable("stations", {
   prixE10: real("prix_e10"),
   prixE85: real("prix_e85"),
   prixGPLc: real("prix_gplc"),
-  maj: timestamp("maj").defaultNow().notNull(),
+  horaires: text("horaires"), // JSON string des horaires
+  services: text("services"), // JSON array des services
+  derniereMiseAJour: timestamp("derniere_mise_a_jour").defaultNow(),
 });
 
 export const insertStationSchema = createInsertSchema(stations).omit({

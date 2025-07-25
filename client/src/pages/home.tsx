@@ -6,7 +6,8 @@ import { StationDetails } from "@/components/station/station-details";
 import { StationListPanel } from "@/components/station/station-list-panel";
 import { NotificationBanner } from "@/components/notifications/notification-banner";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Menu } from "lucide-react";
+import { RefreshCw, Menu, Settings } from "lucide-react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/use-favorites";
 import type { Station } from "@shared/schema";
@@ -129,9 +130,11 @@ export default function Home() {
               </div>
               <h1 className="text-lg font-medium text-gray-900">Carburant Pas Cher</h1>
             </div>
-            <Button variant="ghost" size="sm">
-              <Menu className="h-5 w-5" />
-            </Button>
+            <Link href="/settings">
+              <Button variant="ghost" size="sm">
+                <Settings className="h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
