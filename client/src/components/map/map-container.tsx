@@ -124,7 +124,7 @@ export function MapContainer({
           zoom={zoom}
           bounds={bounds}
           onStationClick={onStationClick}
-          selectedStationId={selectedStationId}
+          selectedStationId={selectedStationId || undefined}
           isFavorite={isFavorite}
         />
       </LeafletMap>
