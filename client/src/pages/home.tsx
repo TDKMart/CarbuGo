@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapContainer } from "@/components/map/map-container";
 import { SearchBar } from "@/components/search/search-bar";
 import { StationDetails } from "@/components/station/station-details";
+import { StationListPanel } from "@/components/station/station-list-panel";
 import { NotificationBanner } from "@/components/notifications/notification-banner";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Menu } from "lucide-react";
@@ -13,6 +14,7 @@ export default function Home() {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const { toast } = useToast();
 
   const { data: stations = [], isLoading, refetch } = useQuery<Station[]>({
@@ -54,11 +56,29 @@ export default function Home() {
     }
   };
 
+  // Get user location on component mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.log("Géolocalisation non disponible:", error);
+          // Continue without location
+        }
+      );
+    }
+  }, []);
+
   // Check for low prices and show notification
   useEffect(() => {
     if (stations.length > 0) {
-      const lowPriceStations = stations.filter((s: Station) => 
-        s.prixGazole && s.prixGazole < 1.65
+      const lowPriceStations = stations.filter((station) => 
+        station.prixGazole && station.prixGazole < 1.65
       );
       if (lowPriceStations.length > 0 && showNotification) {
         // Notification will be shown by NotificationBanner component
@@ -69,10 +89,10 @@ export default function Home() {
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Notification Banner */}
-      {showNotification && stations.some((s: Station) => s.prixGazole && s.prixGazole < 1.65) && (
+      {showNotification && stations.some((station) => station.prixGazole && station.prixGazole < 1.65) && (
         <NotificationBanner
           onClose={() => setShowNotification(false)}
-          stations={stations.filter((s: Station) => s.prixGazole && s.prixGazole < 1.65)}
+          stations={stations.filter((station) => station.prixGazole && station.prixGazole < 1.65)}
         />
       )}
 
@@ -140,6 +160,13 @@ export default function Home() {
       >
         <RefreshCw className={`h-6 w-6 ${isLoading ? 'animate-spin' : ''}`} />
       </Button>
+
+      {/* Station List Panel */}
+      <StationListPanel
+        stations={displayedStations}
+        onStationClick={setSelectedStationId}
+        userLocation={userLocation}
+      />
 
       {/* Station Details Bottom Sheet */}
       {selectedStation && (
