@@ -30,7 +30,7 @@ export function StationDetails({ station, onClose }: StationDetailsProps) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-40 max-h-96 overflow-y-auto animate-in slide-in-from-bottom duration-300">
+    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[1100] max-h-96 overflow-y-auto animate-in slide-in-from-bottom duration-300">
       <div className="p-4">
         {/* Handle */}
         <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>

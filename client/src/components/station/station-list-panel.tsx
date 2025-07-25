@@ -17,6 +17,8 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [startY, setStartY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Calculate distance between two coordinates using Haversine formula
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -120,6 +122,41 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    
+    const currentY = e.touches[0].clientY;
+    const diff = startY - currentY;
+    
+    // Si on tire vers le haut (diff > 0)
+    if (diff > 30) {
+      if (!isExpanded) {
+        setIsExpanded(true);
+      } else if (isExpanded && !isFullScreen) {
+        setIsFullScreen(true);
+      }
+      setIsDragging(false);
+    }
+    // Si on tire vers le bas (diff < 0)
+    else if (diff < -30) {
+      if (isFullScreen) {
+        setIsFullScreen(false);
+      } else if (isExpanded) {
+        setIsExpanded(false);
+      }
+      setIsDragging(false);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   return (
     <>
       {/* Overlay when expanded or fullscreen */}
@@ -143,12 +180,20 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
         <div 
           className="flex items-center justify-center py-3 cursor-pointer border-b border-gray-200"
           onClick={handlePanelToggle}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
         </div>
 
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200">
+        <div 
+          className="px-4 py-3 border-b border-gray-200"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <h3 className="text-lg font-medium text-gray-900">
