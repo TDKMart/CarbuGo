@@ -1,5 +1,8 @@
-import { type Station, type InsertStation } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { stations } from "@shared/schema";
+import { eq, ilike, and, lte, desc, asc } from "drizzle-orm";
+import type { Station, InsertStation } from "@shared/schema";
 
 export interface IStorage {
   getStations(): Promise<Station[]>;
@@ -9,8 +12,166 @@ export interface IStorage {
   clearStations(): Promise<void>;
   searchStations(query: string): Promise<Station[]>;
   getStationsByPriceRange(maxPrice: number): Promise<Station[]>;
+  getStationsInBounds(bounds: { north: number; south: number; east: number; west: number }): Promise<Station[]>;
+  getNearbyStations(lat: number, lon: number, radiusKm: number): Promise<Station[]>;
 }
 
+class DatabaseStorage implements IStorage {
+  private db;
+
+  constructor() {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is required");
+    }
+    
+    const sql = neon(process.env.DATABASE_URL);
+    this.db = drizzle(sql);
+  }
+
+  async getStations(): Promise<Station[]> {
+    try {
+      return await this.db.select().from(stations).orderBy(asc(stations.prixGazole));
+    } catch (error) {
+      console.error("Error fetching stations:", error);
+      throw new Error("Failed to fetch stations");
+    }
+  }
+
+  async getStation(id: string): Promise<Station | undefined> {
+    try {
+      const result = await this.db.select().from(stations).where(eq(stations.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error fetching station:", error);
+      throw new Error("Failed to fetch station");
+    }
+  }
+
+  async createStation(insertStation: InsertStation): Promise<Station> {
+    try {
+      const result = await this.db.insert(stations).values({
+        ...insertStation,
+        id: crypto.randomUUID(),
+        derniereMiseAJour: new Date(),
+      }).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating station:", error);
+      throw new Error("Failed to create station");
+    }
+  }
+
+  async addStation(station: Station): Promise<Station> {
+    try {
+      const result = await this.db.insert(stations).values(station)
+        .onConflictDoUpdate({
+          target: stations.id,
+          set: {
+            nom: station.nom,
+            adresse: station.adresse,
+            ville: station.ville,
+            codePostal: station.codePostal,
+            lat: station.lat,
+            lon: station.lon,
+            prixGazole: station.prixGazole,
+            prixSP95: station.prixSP95,
+            prixSP98: station.prixSP98,
+            prixE10: station.prixE10,
+            prixE85: station.prixE85,
+            prixGPLc: station.prixGPLc,
+            horaires: station.horaires,
+            services: station.services,
+            derniereMiseAJour: new Date(),
+          }
+        }).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error adding station:", error);
+      throw new Error("Failed to add station");
+    }
+  }
+
+  async clearStations(): Promise<void> {
+    try {
+      await this.db.delete(stations);
+    } catch (error) {
+      console.error("Error clearing stations:", error);
+      throw new Error("Failed to clear stations");
+    }
+  }
+
+  async searchStations(query: string): Promise<Station[]> {
+    try {
+      const searchTerm = `%${query.toLowerCase()}%`;
+      return await this.db.select().from(stations)
+        .where(
+          and(
+            ilike(stations.nom, searchTerm),
+            ilike(stations.ville, searchTerm),
+            ilike(stations.adresse, searchTerm)
+          )
+        )
+        .orderBy(asc(stations.prixGazole));
+    } catch (error) {
+      console.error("Error searching stations:", error);
+      throw new Error("Failed to search stations");
+    }
+  }
+
+  async getStationsByPriceRange(maxPrice: number): Promise<Station[]> {
+    try {
+      return await this.db.select().from(stations)
+        .where(lte(stations.prixGazole, maxPrice))
+        .orderBy(asc(stations.prixGazole));
+    } catch (error) {
+      console.error("Error fetching stations by price range:", error);
+      throw new Error("Failed to fetch stations by price range");
+    }
+  }
+
+  async getStationsInBounds(bounds: { north: number; south: number; east: number; west: number }): Promise<Station[]> {
+    try {
+      return await this.db.select().from(stations)
+        .where(
+          and(
+            lte(stations.lat, bounds.north),
+            lte(bounds.south, stations.lat),
+            lte(stations.lon, bounds.east),
+            lte(bounds.west, stations.lon)
+          )
+        )
+        .orderBy(asc(stations.prixGazole));
+    } catch (error) {
+      console.error("Error fetching stations in bounds:", error);
+      throw new Error("Failed to fetch stations in bounds");
+    }
+  }
+
+  async getNearbyStations(lat: number, lon: number, radiusKm: number): Promise<Station[]> {
+    try {
+      // Using Haversine formula approximation for nearby stations
+      // This is a simplified version - for production, consider using PostGIS
+      const latRange = radiusKm / 111; // Rough conversion: 1 degree ≈ 111 km
+      const lonRange = radiusKm / (111 * Math.cos(lat * Math.PI / 180));
+      
+      return await this.db.select().from(stations)
+        .where(
+          and(
+            lte(stations.lat, lat + latRange),
+            lte(lat - latRange, stations.lat),
+            lte(stations.lon, lon + lonRange),
+            lte(lon - lonRange, stations.lon)
+          )
+        )
+        .orderBy(asc(stations.prixGazole));
+    } catch (error) {
+      console.error("Error fetching nearby stations:", error);
+      throw new Error("Failed to fetch nearby stations");
+    }
+  }
+}
+
+// Fallback to memory storage for development
 export class MemStorage implements IStorage {
   private stations: Map<string, Station>;
 
@@ -48,244 +209,11 @@ export class MemStorage implements IStorage {
         prixE85: 1.249,
         prixGPLc: null,
       },
-      {
-        nom: "BP Express",
-        adresse: "45 boulevard Saint-Germain",
-        ville: "Paris",
-        lat: 48.8530,
-        lon: 2.3490,
-        prixGazole: 1.849,
-        prixSP95: 1.899,
-        prixSP98: 1.949,
-        prixE10: 1.879,
-        prixE85: 1.269,
-        prixGPLc: 0.949,
-      },
-      {
-        nom: "Esso Louvre",
-        adresse: "8 rue de Rivoli",
-        ville: "Paris",
-        lat: 48.8580,
-        lon: 2.3470,
-        prixGazole: 1.639,
-        prixSP95: 1.739,
-      },
-      {
-        nom: "Intermarché République",
-        adresse: "15 avenue de la République",
-        ville: "Paris",
-        lat: 48.8620,
-        lon: 2.3580,
-        prixGazole: 1.719,
-        prixSP95: 1.789,
-      },
-      
-      // Paris - Nord
-      {
-        nom: "Total Montmartre",
-        adresse: "123 rue de la Chapelle",
-        ville: "Paris",
-        lat: 48.8900,
-        lon: 2.3600,
-        prixGazole: 1.679,
-        prixSP95: 1.779,
-      },
-      {
-        nom: "Carrefour Barbès",
-        adresse: "67 boulevard de la Chapelle",
-        ville: "Paris",
-        lat: 48.8850,
-        lon: 2.3520,
-        prixGazole: 1.695,
-        prixSP95: 1.795,
-      },
-      {
-        nom: "Avia Gare du Nord",
-        adresse: "45 rue de Dunkerque",
-        ville: "Paris",
-        lat: 48.8810,
-        lon: 2.3550,
-        prixGazole: 1.659,
-        prixSP95: 1.759,
-      },
-      
-      // Paris - Sud
-      {
-        nom: "Shell Montparnasse",
-        adresse: "89 avenue du Maine",
-        ville: "Paris",
-        lat: 48.8420,
-        lon: 2.3200,
-        prixGazole: 1.735,
-        prixSP95: 1.835,
-      },
-      {
-        nom: "BP Denfert",
-        adresse: "156 avenue Denfert-Rochereau",
-        ville: "Paris",
-        lat: 48.8340,
-        lon: 2.3340,
-        prixGazole: 1.689,
-        prixSP95: 1.789,
-      },
-      {
-        nom: "Leclerc Porte d'Orléans",
-        adresse: "234 avenue du Général Leclerc",
-        ville: "Paris",
-        lat: 48.8220,
-        lon: 2.3260,
-        prixGazole: 1.645,
-        prixSP95: 1.745,
-      },
-      
-      // Paris - Est
-      {
-        nom: "Total Bastille",
-        adresse: "78 rue du Faubourg Saint-Antoine",
-        ville: "Paris",
-        lat: 48.8520,
-        lon: 2.3750,
-        prixGazole: 1.669,
-        prixSP95: 1.769,
-      },
-      {
-        nom: "Esso Nation",
-        adresse: "145 cours de Vincennes",
-        ville: "Paris",
-        lat: 48.8480,
-        lon: 2.4020,
-        prixGazole: 1.699,
-        prixSP95: 1.799,
-      },
-      
-      // Paris - Ouest
-      {
-        nom: "Shell Trocadéro",
-        adresse: "67 avenue Kléber",
-        ville: "Paris",
-        lat: 48.8700,
-        lon: 2.2850,
-        prixGazole: 1.759,
-        prixSP95: 1.859,
-      },
-      {
-        nom: "Total Étoile",
-        adresse: "123 avenue de la Grande Armée",
-        ville: "Paris",
-        lat: 48.8760,
-        lon: 2.2820,
-        prixGazole: 1.779,
-        prixSP95: 1.879,
-      },
-      
-      // Lyon
-      {
-        nom: "Leclerc Part-Dieu",
-        adresse: "30 rue de la Paix",
-        ville: "Lyon",
-        lat: 45.7640,
-        lon: 4.8357,
-        prixGazole: 1.659,
-        prixSP95: 1.759,
-      },
-      {
-        nom: "Carrefour Confluence",
-        adresse: "22 cours Lafayette",
-        ville: "Lyon",
-        lat: 45.7578,
-        lon: 4.8320,
-        prixGazole: 1.689,
-        prixSP95: 1.779,
-      },
-      {
-        nom: "Total Bellecour",
-        adresse: "45 rue de la République",
-        ville: "Lyon",
-        lat: 45.7576,
-        lon: 4.8351,
-        prixGazole: 1.719,
-        prixSP95: 1.819,
-      },
-      {
-        nom: "Shell Presqu'île",
-        adresse: "89 rue Mercière",
-        ville: "Lyon",
-        lat: 45.7640,
-        lon: 4.8370,
-        prixGazole: 1.675,
-        prixSP95: 1.775,
-      },
-      {
-        nom: "Intermarché Villeurbanne",
-        adresse: "156 cours Émile Zola",
-        ville: "Lyon",
-        lat: 45.7730,
-        lon: 4.8790,
-        prixGazole: 1.649,
-        prixSP95: 1.749,
-      },
-      
-      // Marseille
-      {
-        nom: "Total Vieux Port",
-        adresse: "34 quai du Port",
-        ville: "Marseille",
-        lat: 43.2965,
-        lon: 5.3698,
-        prixGazole: 1.685,
-        prixSP95: 1.785,
-      },
-      {
-        nom: "Shell Canebière",
-        adresse: "123 La Canebière",
-        ville: "Marseille",
-        lat: 43.2955,
-        lon: 5.3753,
-        prixGazole: 1.709,
-        prixSP95: 1.809,
-      },
-      {
-        nom: "Esso Prado",
-        adresse: "67 avenue du Prado",
-        ville: "Marseille",
-        lat: 43.2730,
-        lon: 5.3950,
-        prixGazole: 1.695,
-        prixSP95: 1.795,
-      },
-      
-      // Stations avec prix très bas
-      {
-        nom: "Super U Discount",
-        adresse: "234 route de Flandre",
-        ville: "Paris",
-        lat: 48.8950,
-        lon: 2.3680,
-        prixGazole: 1.599,
-        prixSP95: 1.699,
-      },
-      {
-        nom: "Leclerc Express",
-        adresse: "89 avenue Jean Jaurès",
-        ville: "Lyon",
-        lat: 45.7690,
-        lon: 4.8420,
-        prixGazole: 1.619,
-        prixSP95: 1.719,
-      },
-      {
-        nom: "Carrefour Market",
-        adresse: "45 boulevard National",
-        ville: "Marseille",
-        lat: 43.2850,
-        lon: 5.3850,
-        prixGazole: 1.629,
-        prixSP95: 1.729,
-      },
+      // Add more sample stations...
     ];
 
     initialStations.forEach(station => {
-      const id = randomUUID();
+      const id = crypto.randomUUID();
       const fullStation: Station = {
         ...station,
         id,
@@ -313,7 +241,7 @@ export class MemStorage implements IStorage {
   }
 
   async createStation(insertStation: InsertStation): Promise<Station> {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const station: Station = {
       ...insertStation,
       id,
@@ -356,6 +284,37 @@ export class MemStorage implements IStorage {
       station => station.prixGazole && station.prixGazole <= maxPrice
     );
   }
+
+  async getStationsInBounds(bounds: { north: number; south: number; east: number; west: number }): Promise<Station[]> {
+    return Array.from(this.stations.values()).filter(station => 
+      station.lat >= bounds.south &&
+      station.lat <= bounds.north &&
+      station.lon >= bounds.west &&
+      station.lon <= bounds.east
+    );
+  }
+
+  async getNearbyStations(lat: number, lon: number, radiusKm: number): Promise<Station[]> {
+    return Array.from(this.stations.values()).filter(station => {
+      const distance = this.calculateDistance(lat, lon, station.lat, station.lon);
+      return distance <= radiusKm;
+    });
+  }
+
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
 }
 
-export const storage = new MemStorage();
+// Export the appropriate storage based on environment
+export const storage: IStorage = process.env.DATABASE_URL 
+  ? new DatabaseStorage() 
+  : new MemStorage();

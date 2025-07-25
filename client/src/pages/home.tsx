@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer } from "@/components/map/map-container";
-import { SearchBar } from "@/components/search/search-bar";
+import { OptimizedMapContainer } from "@/components/map/optimized-map-container";
+import { OptimizedSearchBar } from "@/components/search/optimized-search-bar";
 import { StationDetails } from "@/components/station/station-details";
 import { StationListPanel } from "@/components/station/station-list-panel";
 import { NotificationBanner } from "@/components/notifications/notification-banner";
@@ -10,19 +10,33 @@ import { RefreshCw, Menu, Settings } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/use-favorites";
+import { useGeolocation } from "@/hooks/use-geolocation";
+import { useDebounce } from "@/hooks/use-debounce";
 import type { Station } from "@shared/schema";
 
 export default function Home() {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
   const { toast } = useToast();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  const { data: stations = [], isLoading, refetch } = useQuery<Station[]>({
+  // Use geolocation hook for better location handling
+  const { latitude, longitude, error: locationError } = useGeolocation({
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 300000, // 5 minutes
+  });
+
+  const userLocation = latitude && longitude ? { lat: latitude, lon: longitude } : null;
+
+  // Debounce search query to reduce API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Get all stations for the list panel and statistics
+  const { data: allStations = [], isLoading: allStationsLoading, refetch } = useQuery<Station[]>({
     queryKey: ["/api/stations"],
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const { data: priceStats } = useQuery<{
@@ -31,38 +45,21 @@ export default function Home() {
     avgGazole: number | null;
   }>({
     queryKey: ["/api/stations/stats/prices"],
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: searchResults = [] } = useQuery<Station[]>({
-    queryKey: ["/api/stations/search", searchQuery],
-    enabled: searchQuery.trim().length > 0,
+  const { data: searchResults = [], isLoading: searchLoading } = useQuery<Station[]>({
+    queryKey: ["/api/stations/search", debouncedSearchQuery],
+    enabled: debouncedSearchQuery.trim().length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   const selectedStation = selectedStationId 
-    ? stations.find((s: Station) => s.id === selectedStationId)
+    ? allStations.find((s: Station) => s.id === selectedStationId)
     : null;
 
-  // Filter stations based on search query and map bounds
-  const getDisplayedStations = () => {
-    let filteredStations = searchQuery.trim() ? searchResults : stations;
-    
-    // Further filter by map bounds if available
-    if (mapBounds && filteredStations) {
-      filteredStations = filteredStations.filter((station: Station) => {
-        return (
-          station.lat >= mapBounds.south &&
-          station.lat <= mapBounds.north &&
-          station.lon >= mapBounds.west &&
-          station.lon <= mapBounds.east
-        );
-      });
-    }
-    
-    return filteredStations;
-  };
-
-  const displayedStations = getDisplayedStations();
-  const visibleStations = mapBounds ? displayedStations : stations;
+  // Use search results if searching, otherwise use all stations
+  const displayedStations = searchQuery.trim() ? searchResults : allStations;
 
   const handleRefresh = async () => {
     try {
@@ -80,43 +77,32 @@ export default function Home() {
     }
   };
 
-  // Get user location on component mount
+  // Show location error if any
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.log("Géolocalisation non disponible:", error);
-          // Continue without location
-        }
-      );
+    if (locationError) {
+      console.log("Erreur de géolocalisation:", locationError);
     }
-  }, []);
+  }, [locationError]);
 
   // Check for low prices and show notification
   useEffect(() => {
-    if (stations.length > 0) {
-      const lowPriceStations = stations.filter((station) => 
+    if (allStations.length > 0) {
+      const lowPriceStations = allStations.filter((station) => 
         station.prixGazole && station.prixGazole < 1.65
       );
       if (lowPriceStations.length > 0 && showNotification) {
         // Notification will be shown by NotificationBanner component
       }
     }
-  }, [stations, showNotification]);
+  }, [allStations, showNotification]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Notification Banner */}
-      {showNotification && stations.some((station) => station.prixGazole && station.prixGazole < 1.65) && (
+      {showNotification && allStations.some((station) => station.prixGazole && station.prixGazole < 1.65) && (
         <NotificationBanner
           onClose={() => setShowNotification(false)}
-          stations={stations.filter((station) => station.prixGazole && station.prixGazole < 1.65)}
+          stations={allStations.filter((station) => station.prixGazole && station.prixGazole < 1.65)}
         />
       )}
 
@@ -141,10 +127,10 @@ export default function Home() {
 
       {/* Search and Filters */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 relative z-30">
-        <SearchBar 
+        <OptimizedSearchBar 
           value={searchQuery}
           onChange={setSearchQuery}
-          isLoading={isLoading}
+          isLoading={searchLoading}
         />
         
         {/* Price Summary */}
@@ -170,11 +156,10 @@ export default function Home() {
 
       {/* Map Container */}
       <div className="flex-1 relative pb-20">
-        <MapContainer
-          stations={stations}
+        <OptimizedMapContainer
           onStationClick={setSelectedStationId}
           selectedStationId={selectedStationId}
-          isLoading={isLoading}
+          isLoading={allStationsLoading}
           isFavorite={isFavorite}
         />
       </div>
@@ -183,14 +168,14 @@ export default function Home() {
       <Button
         onClick={handleRefresh}
         className="fixed bottom-6 right-6 rounded-full p-4 h-14 w-14 shadow-lg hover:shadow-xl z-30"
-        disabled={isLoading}
+        disabled={allStationsLoading}
       >
-        <RefreshCw className={`h-6 w-6 ${isLoading ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`h-6 w-6 ${allStationsLoading ? 'animate-spin' : ''}`} />
       </Button>
 
       {/* Station List Panel */}
       <StationListPanel
-        stations={stations}
+        stations={displayedStations}
         onStationClick={setSelectedStationId}
         userLocation={userLocation}
         isFavorite={isFavorite}
