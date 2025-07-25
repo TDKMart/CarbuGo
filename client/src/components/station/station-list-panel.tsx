@@ -106,9 +106,8 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
     if (isFullScreen) {
       setIsFullScreen(false);
       setIsExpanded(false);
-    } else if (isExpanded) {
-      setIsFullScreen(true);
     } else {
+      setIsFullScreen(true);
       setIsExpanded(true);
     }
   };
@@ -133,22 +132,16 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
     const currentY = e.touches[0].clientY;
     const diff = startY - currentY;
     
-    // Si on tire vers le haut (diff > 0)
+    // Si on tire vers le haut (diff > 0) - va directement en plein écran
     if (diff > 30) {
-      if (!isExpanded) {
-        setIsExpanded(true);
-      } else if (isExpanded && !isFullScreen) {
-        setIsFullScreen(true);
-      }
+      setIsFullScreen(true);
+      setIsExpanded(true);
       setIsDragging(false);
     }
-    // Si on tire vers le bas (diff < 0)
+    // Si on tire vers le bas (diff < 0) - ferme complètement
     else if (diff < -30) {
-      if (isFullScreen) {
-        setIsFullScreen(false);
-      } else if (isExpanded) {
-        setIsExpanded(false);
-      }
+      setIsFullScreen(false);
+      setIsExpanded(false);
       setIsDragging(false);
     }
   };
@@ -199,43 +192,28 @@ export function StationListPanel({ stations, onStationClick, userLocation }: Sta
               <h3 className="text-lg font-medium text-gray-900">
                 Stations ({stations.length})
               </h3>
-              {!isExpanded && !isFullScreen && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded(true);
-                  }}
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-              )}
-              {isExpanded && !isFullScreen && (
+              {!isFullScreen && (
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsFullScreen(true);
+                    setIsExpanded(true);
                   }}
                 >
                   <ChevronUp className="h-4 w-4" />
                 </Button>
               )}
             </div>
-            {(isExpanded || isFullScreen) && (
+            {isFullScreen && (
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isFullScreen) {
-                    setIsFullScreen(false);
-                    setIsExpanded(true);
-                  } else {
-                    setIsExpanded(false);
-                  }
+                  setIsFullScreen(false);
+                  setIsExpanded(false);
                 }}
               >
                 <ChevronDown className="h-4 w-4" />
