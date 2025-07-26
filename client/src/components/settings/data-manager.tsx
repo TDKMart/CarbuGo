@@ -13,6 +13,11 @@ interface XMLStatus {
   hasLocalFile: boolean;
   localFileDate: Date | null;
   isOutdated: boolean;
+  supabaseFile: {
+    exists: boolean;
+    lastModified?: Date;
+    size?: number;
+  };
 }
 
 export function DataManager() {
@@ -80,6 +85,29 @@ export function DataManager() {
     }
   };
 
+  const handleUploadToSupabase = async () => {
+    setIsLoading(true);
+    try {
+      await apiRequest("POST", "/api/stations/upload-supabase");
+
+      toast({
+        title: "Upload terminé",
+        description: "Fichier XML uploadé sur Supabase avec succès",
+      });
+
+      refetchStatus();
+    } catch (error) {
+      console.error("Erreur lors de l'upload:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'uploader le fichier vers Supabase",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const requestNotificationPermission = async () => {
     if ("Notification" in window) {
       const permission = await Notification.requestPermission();
@@ -134,13 +162,29 @@ export function DataManager() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Globe className="h-4 w-4 text-blue-500" />
-              <span className="text-sm">Données en ligne</span>
+              <HardDrive className="h-4 w-4 text-blue-500" />
+              <span className="text-sm">Supabase Storage</span>
             </div>
-            <Badge variant="default">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Disponible
-            </Badge>
+            <div className="flex items-center space-x-2">
+              {xmlStatus?.supabaseFile.exists ? (
+                <>
+                  <Badge variant="default">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Disponible
+                  </Badge>
+                  {xmlStatus.supabaseFile.lastModified && (
+                    <span className="text-xs text-gray-500">
+                      {formatDate(xmlStatus.supabaseFile.lastModified)}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <Badge variant="secondary">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Non disponible
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
@@ -218,10 +262,21 @@ export function DataManager() {
             onClick={handleDownloadXML}
             disabled={isLoading}
             variant="secondary"
-            className="w-full flex items-center space-x-2"
+            className="flex items-center space-x-2"
           >
             <Download className="h-4 w-4" />
             <span>Télécharger pour utilisation hors ligne</span>
+            {isLoading && <RefreshCw className="h-4 w-4 animate-spin" />}
+          </Button>
+
+          <Button
+            onClick={handleUploadToSupabase}
+            disabled={isLoading}
+            variant="outline"
+            className="flex items-center space-x-2"
+          >
+            <Globe className="h-4 w-4" />
+            <span>Uploader vers Supabase</span>
             {isLoading && <RefreshCw className="h-4 w-4 animate-spin" />}
           </Button>
         </CardContent>
