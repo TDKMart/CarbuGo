@@ -7,6 +7,10 @@ import type { Station } from '@shared/schema';
 const XML_URL = 'https://donnees.roulez-eco.fr/opendata/instantane';
 const LOCAL_XML_PATH = path.join(process.cwd(), 'data', 'stations.xml');
 
+// Configuration Supabase pour le stockage du fichier XML
+const SUPABASE_BUCKET = 'carbugo-data';
+const SUPABASE_XML_FILE = 'stations-data.xml';
+
 // Interface pour les données XML brutes
 interface XMLStation {
   $: {
@@ -41,6 +45,126 @@ const FUEL_MAPPING: Record<string, keyof Pick<Station, 'prixGazole' | 'prixSP95'
 
 export class XMLStationLoader {
   private parser = new xml2js.Parser();
+  private supabaseUrl: string;
+  private supabaseKey: string;
+
+  constructor() {
+    this.supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    this.supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+  }
+
+  /**
+   * Télécharge le fichier XML depuis l'API officielle et le sauvegarde sur Supabase
+   */
+  async downloadAndUploadToSupabase(): Promise<void> {
+    try {
+      console.log('Téléchargement du fichier XML depuis l\'API officielle...');
+      const response = await fetch(XML_URL);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP lors du téléchargement: ${response.status}`);
+      }
+      
+      const xmlData = await response.text();
+      
+      // Upload vers Supabase Storage
+      await this.uploadToSupabase(xmlData);
+      
+      console.log('Fichier XML téléchargé et uploadé sur Supabase avec succès');
+    } catch (error) {
+      console.error('Erreur lors du téléchargement et upload:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload le fichier XML vers Supabase Storage
+   */
+  private async uploadToSupabase(xmlData: string): Promise<void> {
+    try {
+      const uploadUrl = `${this.supabaseUrl}/storage/v1/object/${SUPABASE_BUCKET}/${SUPABASE_XML_FILE}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.supabaseKey}`,
+          'Content-Type': 'application/xml',
+          'x-upsert': 'true' // Remplace le fichier s'il existe
+        },
+        body: xmlData
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Erreur upload Supabase: ${uploadResponse.status} - ${errorText}`);
+      }
+
+      console.log('Fichier XML uploadé sur Supabase avec succès');
+    } catch (error) {
+      console.error('Erreur lors de l\'upload vers Supabase:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Télécharge le fichier XML depuis Supabase Storage
+   */
+  async loadFromSupabase(): Promise<Station[]> {
+    try {
+      console.log('Chargement du fichier XML depuis Supabase...');
+      
+      const downloadUrl = `${this.supabaseUrl}/storage/v1/object/public/${SUPABASE_BUCKET}/${SUPABASE_XML_FILE}`;
+      
+      const response = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.supabaseKey}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du téléchargement depuis Supabase: ${response.status}`);
+      }
+      
+      const xmlData = await response.text();
+      return await this.parseXMLData(xmlData);
+    } catch (error) {
+      console.error('Erreur lors du chargement depuis Supabase:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifie si le fichier XML existe sur Supabase et récupère ses métadonnées
+   */
+  async getSupabaseFileInfo(): Promise<{ exists: boolean; lastModified?: Date; size?: number }> {
+    try {
+      const infoUrl = `${this.supabaseUrl}/storage/v1/object/info/public/${SUPABASE_BUCKET}/${SUPABASE_XML_FILE}`;
+      
+      const response = await fetch(infoUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.supabaseKey}`
+        }
+      });
+
+      if (response.status === 404) {
+        return { exists: false };
+      }
+
+      if (!response.ok) {
+        throw new Error(`Erreur lors de la vérification du fichier: ${response.status}`);
+      }
+
+      const info = await response.json();
+      return {
+        exists: true,
+        lastModified: info.updated_at ? new Date(info.updated_at) : undefined,
+        size: info.metadata?.size
+      };
+    } catch (error) {
+      console.error('Erreur lors de la vérification du fichier Supabase:', error);
+      return { exists: false };
+    }
+  }
 
   async downloadXMLFile(): Promise<void> {
     try {
@@ -94,25 +218,44 @@ export class XMLStationLoader {
     }
   }
 
+  /**
+   * Charge les stations avec priorité : Supabase > URL officielle > Local
+   */
   async loadStations(useLocal = false): Promise<Station[]> {
     if (useLocal) {
       try {
         return await this.loadFromLocal();
       } catch (error) {
-        console.log('Fichier local non disponible, téléchargement depuis l\'URL...');
-        const stations = await this.loadFromURL();
-        // Sauvegarder automatiquement pour usage hors ligne
-        await this.downloadXMLFile();
-        return stations;
+        console.log('Fichier local non disponible, essai depuis Supabase...');
+        return await this.loadFromSupabase();
       }
     } else {
       try {
+        // Essaie d'abord Supabase
+        const fileInfo = await this.getSupabaseFileInfo();
+        
+        if (fileInfo.exists && fileInfo.lastModified) {
+          // Vérifie si le fichier Supabase est récent (moins de 6 heures)
+          const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+          
+          if (fileInfo.lastModified > sixHoursAgo) {
+            console.log('Utilisation du fichier Supabase récent');
+            return await this.loadFromSupabase();
+          }
+        }
+        
+        // Sinon, télécharge depuis l'API officielle et upload sur Supabase
+        console.log('Téléchargement depuis l\'API officielle et mise à jour Supabase...');
         const stations = await this.loadFromURL();
-        // Sauvegarder automatiquement pour usage hors ligne
-        await this.downloadXMLFile();
+        
+        // Upload en arrière-plan (ne bloque pas le retour des données)
+        this.downloadAndUploadToSupabase().catch(error => {
+          console.error('Erreur lors de l\'upload en arrière-plan:', error);
+        });
+        
         return stations;
       } catch (error) {
-        console.log('URL non accessible, essai du fichier local...');
+        console.log('Erreur avec Supabase/API, essai du fichier local...');
         return await this.loadFromLocal();
       }
     }

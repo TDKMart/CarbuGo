@@ -259,14 +259,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const hasLocal = await xmlLoader.checkLocalFileExists();
       const localDate = await xmlLoader.getLocalFileDate();
+      const supabaseInfo = await xmlLoader.getSupabaseFileInfo();
       
       res.json({
         hasLocalFile: hasLocal,
         localFileDate: localDate,
-        isOutdated: localDate ? (Date.now() - localDate.getTime()) > 24 * 60 * 60 * 1000 : true
+        isOutdated: localDate ? (Date.now() - localDate.getTime()) > 24 * 60 * 60 * 1000 : true,
+        supabaseFile: {
+          exists: supabaseInfo.exists,
+          lastModified: supabaseInfo.lastModified,
+          size: supabaseInfo.size
+        }
       });
     } catch (error) {
       res.status(500).json({ message: "Erreur lors de la vérification du statut XML" });
+    }
+  });
+
+  // Upload XML to Supabase
+  app.post("/api/stations/upload-supabase", async (req, res) => {
+    try {
+      await xmlLoader.downloadAndUploadToSupabase();
+      const fileInfo = await xmlLoader.getSupabaseFileInfo();
+      
+      res.json({ 
+        message: "Fichier XML uploadé sur Supabase avec succès",
+        fileInfo
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'upload Supabase:', error);
+      res.status(500).json({ 
+        message: "Erreur lors de l'upload vers Supabase",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

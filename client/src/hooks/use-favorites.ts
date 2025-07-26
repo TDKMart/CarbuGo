@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const FAVORITES_KEY = 'gas-station-favorites';
+const FAVORITES_KEY = 'carbugo-favorites';
 
 export function useFavorites() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());

@@ -114,7 +114,7 @@ export default function Home() {
               <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
-              <h1 className="text-lg font-medium text-gray-900">Carburant Pas Cher</h1>
+              <h1 className="text-lg font-medium text-gray-900">CarbuGo</h1>
             </div>
             <Link href="/settings">
               <Button variant="ghost" size="sm">

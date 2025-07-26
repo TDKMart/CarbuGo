@@ -114,7 +114,7 @@ export function DataManager() {
   return (
     <div className="space-y-6 p-4">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Gestion des données</h2>
+        <h2 className="text-2xl font-bold text-gray-900">CarbuGo - Gestion des données</h2>
         <p className="text-gray-600 mt-2">
           Gérez vos sources de données et vos préférences de notification
         </p>

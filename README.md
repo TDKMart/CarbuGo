@@ -1,6 +1,6 @@
-# Gas Station Finder - Application de recherche de stations-service
+# CarbuGo - Application de recherche de stations-service
 
-Une application web moderne pour trouver les stations-service les moins chères en France, avec une interface interactive et des données en temps réel.
+CarbuGo est une application web moderne pour trouver les stations-service les moins chères en France, avec une interface interactive et des données en temps réel.
 
 ## 🚀 Fonctionnalités
 
@@ -52,8 +52,8 @@ Une application web moderne pour trouver les stations-service les moins chères 
 ### Installation
 ```bash
 # Cloner le projet
-git clone <repository-url>
-cd gas-station-finder
+git clone <repository-url> 
+cd carbugo
 
 # Installer les dépendances
 npm install
